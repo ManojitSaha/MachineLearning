@@ -1,0 +1,112 @@
+---
+title: "Practical Machine Learning"
+author: "Manojit Saha"
+date: "25 September 2016"
+output: html_document
+---
+
+#Set Working Directory, Download and Load Data
+
+```{r echo=TRUE}
+setwd('G:/Intro to R/Machine Learning')
+training <- read.csv("pml-training.csv", na.strings=c("NA","#DIV/0!",""))
+testing <- read.csv("pml-testing.csv", na.strings=c("NA","#DIV/0!",""))
+
+```
+
+#Include Libraries, Set Seed value for reproducibility
+
+```{r echo=TRUE}
+library(caret)
+library(rpart)
+library(rpart.plot)
+library(RColorBrewer)
+library(rattle)
+library(randomForest)
+library(knitr)
+set.seed(55555)
+
+```
+#Clean Data
+1. Delete columns (predictors) of the training set that contain any missing values
+2. Remove the first seven predictors as these variables have little predicting power for the outcome classe
+
+```{r echo=TRUE}
+training <- training[, colSums(is.na(training)) == 0]
+testing <- testing[, colSums(is.na(testing)) == 0]
+
+trainData <- training[, -c(1:7)]
+testData <- testing[, -c(1:7)]
+
+
+```
+traindata: 19622 rows and 52 columns plus classe
+testdata: 20 rows and 52 columns plus ploblem_id
+
+#Data Split
+Training set trainData is splitted into a training set (train, 70%) for prediction and a validation set (valid 30%) to compute the out-of-sample errors.
+
+```{r echo=TRUE}
+inTrain <- createDataPartition(trainData$classe, p = 0.7, list = FALSE)
+train <- trainData[inTrain, ]
+valid <- trainData[-inTrain, ]
+
+```
+
+
+#Prediction Algorithm
+
+## Classification Trees
+
+Performed 5-fold cross validation to save time and increase performance.
+```{r echo=TRUE}
+control <- trainControl(method = "cv", number = 5)
+fit_rpart <- train(classe ~ ., data = train, method = "rpart", 
+                   trControl = control)
+print(fit_rpart, digits = 4)
+
+```
+## Decision Tree
+
+```{r echo=TRUE}
+fancyRpartPlot(fit_rpart$finalModel)
+
+```
+## Confusion Matrix
+Use confusion matrix and find how accurate the Classification Tree in this scenario
+```{r echo=TRUE}
+
+predict_rpart <- predict(fit_rpart, valid)
+(conf_rpart <- confusionMatrix(valid$classe, predict_rpart))
+
+
+```
+Accuracy of Confusion Matrix
+
+```{r echo=TRUE}
+(accuracy_rpart <- conf_rpart$overall[1])
+
+```
+
+The accuracy is close to 50% and the quality of prediction of the cariable classe on the data set is not encouraging.
+
+##Random forest
+Applying Random Forest algorithm just to test if it gives a better prediction confidance than the Classification matrix.
+
+```{r echo=TRUE}
+fit_rf <- train(classe ~ ., data = train, method = "rf", trControl = control)
+print(fit_rf, digits = 4)
+
+```
+## Prediict the outcome using validation Set
+
+```{r echo=TRUE}
+
+predict_rf <- predict(fit_rf, valid)
+(conf_rf <- confusionMatrix(valid$classe, predict_rf))
+```
+## Accuracy from Random Forest
+```{r echo=TRUE}
+(accuracy_rf <- conf_rf$overall[1])
+```
+It's found that the confidance on the prediction through Random Forest algorithm is 99% 
